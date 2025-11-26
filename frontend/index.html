@@ -32,8 +32,134 @@
             color: var(--text-primary);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             line-height: 1.6;
+        }
+
+        /* App Layout */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .new-chat-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .new-chat-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .sessions-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .session-item {
+            display: flex;
+            align-items: center;
+            padding: 0.625rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 2px;
+            transition: background 0.15s ease;
+        }
+
+        .session-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .session-item.active {
+            background: var(--accent);
+        }
+
+        .session-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .session-title {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .session-date {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+        }
+
+        .session-delete {
+            opacity: 0;
+            padding: 0.25rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .session-item:hover .session-delete {
+            opacity: 1;
+        }
+
+        .session-delete:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .session-delete svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .sessions-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
 
         /* Header */
@@ -41,8 +167,6 @@
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
             padding: 0.75rem 1.5rem;
-            position: sticky;
-            top: 0;
             z-index: 100;
         }
 
@@ -534,26 +658,55 @@
         <symbol id="icon-status" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="12" r="6"/>
         </symbol>
+        <!-- Additional icons for sidebar -->
+        <symbol id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+        </symbol>
+        <symbol id="icon-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"/>
+        </symbol>
+        <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+        </symbol>
     </svg>
 
-    <header>
-        <div class="header-content">
-            <div class="logo">
-                <svg><use href="#icon-logo"/></svg>
-                <span>DIY ChatGPT</span>
-            </div>
-            <div class="header-actions">
-                <div id="status" class="status connected">
-                    <svg><use href="#icon-status"/></svg>
-                    <span>Connected</span>
-                </div>
-                <button id="clearBtn" class="btn">
-                    <svg><use href="#icon-clear"/></svg>
-                    <span>Clear</span>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button id="newChatBtn" class="new-chat-btn">
+                    <svg><use href="#icon-plus"/></svg>
+                    <span>New Chat</span>
                 </button>
             </div>
-        </div>
-    </header>
+            <div id="sessionsList" class="sessions-list">
+                <div class="sessions-empty">
+                    <p>No conversations yet</p>
+                    <p>Start a new chat to begin</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <header>
+                <div class="header-content">
+                    <div class="logo">
+                        <svg><use href="#icon-logo"/></svg>
+                        <span>DIY ChatGPT</span>
+                    </div>
+                    <div class="header-actions">
+                        <div id="status" class="status connected">
+                            <svg><use href="#icon-status"/></svg>
+                            <span>Connected</span>
+                        </div>
+                        <button id="clearBtn" class="btn">
+                            <svg><use href="#icon-clear"/></svg>
+                            <span>Clear</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
 
     <div class="toolbar">
         <div class="toolbar-content">
@@ -629,11 +782,16 @@
         </div>
     </footer>
 
+        </div><!-- End main-content -->
+    </div><!-- End app-container -->
+
     <script>
         const API_URL = 'http://localhost:3001/api';
         let messages = [];
         let isLoading = false;
-        let enabledTools = new Set(); // Track manually enabled tools
+        let enabledTools = new Set();
+        let currentSessionId = null;
+        let sessions = [];
 
         const messagesDiv = document.getElementById('messages');
         const chatForm = document.getElementById('chatForm');
@@ -643,11 +801,194 @@
         const statusEl = document.getElementById('status');
         const toolToggles = document.querySelectorAll('.tool-toggle');
         const activeToolsCount = document.getElementById('activeToolsCount');
+        const sessionsList = document.getElementById('sessionsList');
+        const newChatBtn = document.getElementById('newChatBtn');
 
         // Configure marked
         marked.setOptions({
             breaks: true,
             gfm: true
+        });
+
+        // ==================== SESSION MANAGEMENT ====================
+
+        // Load sessions on startup
+        async function loadSessions() {
+            try {
+                const response = await fetch(`${API_URL}/sessions?limit=50`);
+                if (!response.ok) throw new Error('Failed to load sessions');
+                
+                const data = await response.json();
+                sessions = data.sessions || [];
+                renderSessionsList();
+            } catch (error) {
+                console.error('Load sessions error:', error);
+                // Continue without sessions
+            }
+        }
+
+        // Render sessions list in sidebar
+        function renderSessionsList() {
+            if (sessions.length === 0) {
+                sessionsList.innerHTML = `
+                    <div class="sessions-empty">
+                        <p>No conversations yet</p>
+                        <p>Start a new chat to begin</p>
+                    </div>
+                `;
+                return;
+            }
+
+            sessionsList.innerHTML = sessions.map(session => {
+                const date = new Date(session.lastActivityAt);
+                const dateStr = formatDate(date);
+                const isActive = session.id === currentSessionId;
+                
+                return `
+                    <div class="session-item ${isActive ? 'active' : ''}" data-id="${session.id}">
+                        <div class="session-item-content">
+                            <div class="session-title">${escapeHtml(session.title || 'New Chat')}</div>
+                            <div class="session-date">${dateStr}</div>
+                        </div>
+                        <button class="session-delete" data-id="${session.id}" title="Delete">
+                            <svg><use href="#icon-trash"/></svg>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers
+            sessionsList.querySelectorAll('.session-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (!e.target.closest('.session-delete')) {
+                        loadSession(item.dataset.id);
+                    }
+                });
+            });
+
+            sessionsList.querySelectorAll('.session-delete').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteSession(btn.dataset.id);
+                });
+            });
+        }
+
+        // Format date for display
+        function formatDate(date) {
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+            if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        // Create new session
+        async function createSession() {
+            try {
+                const response = await fetch(`${API_URL}/sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                if (!response.ok) throw new Error('Failed to create session');
+                
+                const session = await response.json();
+                currentSessionId = session.id;
+                sessions.unshift(session);
+                messages = [];
+                
+                renderSessionsList();
+                clearMessages();
+                
+                return session;
+            } catch (error) {
+                console.error('Create session error:', error);
+                return null;
+            }
+        }
+
+        // Load session messages
+        async function loadSession(sessionId) {
+            try {
+                const response = await fetch(`${API_URL}/sessions/${sessionId}?pageSize=50`);
+                if (!response.ok) throw new Error('Failed to load session');
+                
+                const session = await response.json();
+                currentSessionId = sessionId;
+                messages = session.messages || [];
+                
+                renderSessionsList();
+                renderMessages();
+            } catch (error) {
+                console.error('Load session error:', error);
+            }
+        }
+
+        // Delete session
+        async function deleteSession(sessionId) {
+            if (!confirm('Delete this conversation?')) return;
+            
+            try {
+                await fetch(`${API_URL}/sessions/${sessionId}`, { method: 'DELETE' });
+                
+                sessions = sessions.filter(s => s.id !== sessionId);
+                
+                if (currentSessionId === sessionId) {
+                    currentSessionId = null;
+                    messages = [];
+                    clearMessages();
+                }
+                
+                renderSessionsList();
+            } catch (error) {
+                console.error('Delete session error:', error);
+            }
+        }
+
+        // Clear messages display
+        function clearMessages() {
+            messagesDiv.innerHTML = `
+                <div class="message">
+                    <div class="message-avatar">
+                        <svg><use href="#icon-assistant"/></svg>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-role">Assistant</div>
+                        <div class="message-text">
+                            <p>Hello. How can I help you today?</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render all messages
+        function renderMessages() {
+            messagesDiv.innerHTML = '';
+            
+            if (messages.length === 0) {
+                clearMessages();
+                return;
+            }
+            
+            messages.forEach(msg => {
+                addMessage(msg.role, msg.content, false, {
+                    toolUsed: msg.toolUsed,
+                    sources: msg.sources
+                });
+            });
+        }
+
+        // New chat button
+        newChatBtn.addEventListener('click', async () => {
+            await createSession();
+            messageInput.focus();
         });
 
         // Tool toggle handling
@@ -758,18 +1099,29 @@
             
             isLoading = true;
             sendBtn.disabled = true;
+
+            // Create session if none exists
+            if (!currentSessionId) {
+                const session = await createSession();
+                if (!session) {
+                    isLoading = false;
+                    sendBtn.disabled = false;
+                    return;
+                }
+            }
             
-            messages.push({ role: 'user', content });
+            // Add user message to UI immediately
             addMessage('user', content);
             
             const typingDiv = addMessage('assistant', '', true);
             
             try {
-                // Build request with enabled tools
+                // Build request with session ID
                 const requestBody = { 
-                    messages,
-                    enabledTools: Array.from(enabledTools), // Send manually enabled tools
-                    useAgent: enabledTools.size === 0 // Use auto-routing if no tools selected
+                    message: content,
+                    sessionId: currentSessionId,
+                    enabledTools: Array.from(enabledTools),
+                    useAgent: enabledTools.size === 0
                 };
                 
                 const response = await fetch(`${API_URL}/chat`, {
@@ -786,11 +1138,22 @@
                 const data = await response.json();
                 typingDiv.remove();
                 
-                messages.push({ role: 'assistant', content: data.content });
+                // Add to local messages for display
+                messages.push({ role: 'user', content });
+                messages.push({ 
+                    role: 'assistant', 
+                    content: data.content,
+                    toolUsed: data.toolUsed,
+                    sources: data.sources
+                });
+                
                 addMessage('assistant', data.content, false, {
                     toolUsed: data.toolUsed,
                     sources: data.sources
                 });
+
+                // Update session in sidebar (refresh title if new)
+                await refreshSessionInList(currentSessionId);
                 
             } catch (error) {
                 typingDiv.remove();
@@ -799,6 +1162,30 @@
                 isLoading = false;
                 sendBtn.disabled = false;
                 messageInput.focus();
+            }
+        }
+
+        // Refresh session in sidebar
+        async function refreshSessionInList(sessionId) {
+            try {
+                const response = await fetch(`${API_URL}/sessions/${sessionId}?pageSize=1`);
+                if (!response.ok) return;
+                
+                const session = await response.json();
+                const index = sessions.findIndex(s => s.id === sessionId);
+                
+                if (index >= 0) {
+                    sessions[index] = { ...sessions[index], ...session };
+                    // Move to top if not already
+                    if (index > 0) {
+                        sessions.splice(index, 1);
+                        sessions.unshift(session);
+                    }
+                }
+                
+                renderSessionsList();
+            } catch (error) {
+                console.error('Refresh session error:', error);
             }
         }
 
@@ -855,6 +1242,7 @@
 
         // Init
         checkHealth();
+        loadSessions();
         setInterval(checkHealth, 30000);
         messageInput.focus();
     </script>

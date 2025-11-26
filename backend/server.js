@@ -41,6 +41,7 @@ app.get('/health', (req, res) => {
 });
 
 // Basic chat endpoint (with agent for tool use)
+// Now supports session-based chat with automatic summarization
 app.post('/api/chat', async (req, res) => {
   try {
     if (!openai) {
@@ -50,10 +51,35 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const { messages, useAgent = true, enabledTools = [] } = req.body;
-    
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: 'Messages array is required' });
+    const { 
+      message,           // New: single message content
+      messages,          // Legacy: array of messages (for non-session mode)
+      sessionId,         // Session ID for persistent chat
+      useAgent = true, 
+      enabledTools = [] 
+    } = req.body;
+
+    let chatMessages;
+    let currentSessionId = sessionId;
+
+    // Session-based chat
+    if (sessionId && sessionService) {
+      // Save user message to session
+      await sessionService.addMessage(sessionId, 'user', message || messages[messages.length - 1].content);
+
+      // Get context with automatic summarization
+      const context = await sessionService.getContextForApiCall(sessionId);
+      chatMessages = context.messages;
+      
+      console.log(`[Chat] Session ${sessionId}: ${context.activeMessageCount} active messages, summary: ${context.hasSummary}`);
+    } else if (messages && Array.isArray(messages)) {
+      // Legacy mode: direct messages array
+      chatMessages = messages;
+    } else if (message) {
+      // Single message without session
+      chatMessages = [{ role: 'user', content: message }];
+    } else {
+      return res.status(400).json({ error: 'Message or messages array is required' });
     }
 
     let result;
@@ -62,30 +88,38 @@ app.post('/api/chat', async (req, res) => {
     const hasManualTools = enabledTools && enabledTools.length > 0;
     
     if (hasManualTools && orchestrator) {
-      // Use manually selected tools with constructive prompts
       console.log(`[Server] Manual tools enabled: ${enabledTools.join(', ')}`);
-      result = await orchestrator.process(messages, { 
+      result = await orchestrator.process(chatMessages, { 
         customInstructions: req.body.customInstructions,
         forcedTools: enabledTools
       });
     } else if (useAgent && orchestrator) {
-      // Use orchestrator: planner model → executor model (auto-detect)
-      result = await orchestrator.process(messages, { customInstructions: req.body.customInstructions });
+      result = await orchestrator.process(chatMessages, { customInstructions: req.body.customInstructions });
     } else {
-      // Direct chat without tool use
       const completion = await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        messages,
+        messages: chatMessages,
         max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 2000,
         temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7
       });
       result = completion.choices[0].message;
     }
 
-    // Log token usage for cost monitoring
-    if (result.usage) {
-      const cost = (result.usage.total_tokens / 1000) * 0.002;
-      console.log(`Token usage: ${result.usage.total_tokens} tokens, ~$${cost.toFixed(4)}`);
+    // Save assistant response to session
+    if (currentSessionId && sessionService) {
+      await sessionService.addMessage(currentSessionId, 'assistant', result.content, {
+        toolUsed: result.toolUsed,
+        sources: result.sources,
+        extra: result.metadata
+      });
+
+      // Generate title if first response
+      const session = await sessionService.getSession(currentSessionId, 2);
+      if (!session.title && session.messages.length >= 2) {
+        sessionService.generateTitle(currentSessionId).catch(err => 
+          console.error('[Chat] Title generation error:', err.message)
+        );
+      }
     }
 
     // Log tool usage
@@ -93,7 +127,10 @@ app.post('/api/chat', async (req, res) => {
       console.log(`[Agent] Tool used: ${result.toolUsed}`);
     }
 
-    res.json(result);
+    res.json({
+      ...result,
+      sessionId: currentSessionId
+    });
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ 
@@ -110,12 +147,18 @@ const ResearchAgent = require('./services/research');
 const ExportService = require('./services/export');
 const MemoryService = require('./services/memory');
 const Orchestrator = require('./services/orchestrator');
+const SummarizerService = require('./services/summarizer');
+const SessionService = require('./services/session');
+const database = require('./services/storage/database');
+
 const searchService = new SearchService();
 const contentFetcher = new ContentFetcher();
 const studyService = isApiKeyConfigured ? new StudyService(openai) : null;
 const researchAgent = isApiKeyConfigured ? new ResearchAgent(openai) : null;
 const exportService = new ExportService();
 const memoryService = new MemoryService();
+const summarizerService = isApiKeyConfigured ? new SummarizerService(openai) : null;
+const sessionService = isApiKeyConfigured ? new SessionService(openai, summarizerService) : null;
 
 // Orchestrator with planner → executor architecture
 const orchestrator = isApiKeyConfigured ? new Orchestrator(openai, {
@@ -124,6 +167,16 @@ const orchestrator = isApiKeyConfigured ? new Orchestrator(openai, {
   study: studyService,
   research: researchAgent
 }) : null;
+
+// Initialize database on startup
+(async () => {
+  try {
+    await database.initialize();
+  } catch (err) {
+    console.error('[Server] Database initialization failed:', err.message);
+    console.log('[Server] Continuing without database - sessions will not be persisted');
+  }
+})();
 
 // Search endpoint
 app.post('/api/search', async (req, res) => {
@@ -553,6 +606,112 @@ app.get('/api/conversations/:id', async (req, res) => {
     res.json(conversation);
   } catch (error) {
     console.error('Load conversation error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== SESSION ENDPOINTS ====================
+
+// List all sessions
+app.get('/api/sessions', async (req, res) => {
+  try {
+    if (!sessionService) {
+      return res.status(503).json({ error: 'Session service not available' });
+    }
+    
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    const result = await sessionService.listSessions(limit, offset);
+    res.json(result);
+  } catch (error) {
+    console.error('List sessions error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create new session
+app.post('/api/sessions', async (req, res) => {
+  try {
+    if (!sessionService) {
+      return res.status(503).json({ error: 'Session service not available' });
+    }
+    
+    const { title } = req.body;
+    const session = await sessionService.createSession(title);
+    res.json(session);
+  } catch (error) {
+    console.error('Create session error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get session with messages
+app.get('/api/sessions/:id', async (req, res) => {
+  try {
+    if (!sessionService) {
+      return res.status(503).json({ error: 'Session service not available' });
+    }
+    
+    const pageSize = parseInt(req.query.pageSize) || undefined;
+    const session = await sessionService.getSession(req.params.id, pageSize);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    res.json(session);
+  } catch (error) {
+    console.error('Get session error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get more messages (pagination)
+app.get('/api/sessions/:id/messages', async (req, res) => {
+  try {
+    if (!sessionService) {
+      return res.status(503).json({ error: 'Session service not available' });
+    }
+    
+    const limit = parseInt(req.query.limit) || 50;
+    const beforeId = req.query.beforeId || null;
+    
+    const messages = await sessionService.getMessages(req.params.id, limit, beforeId);
+    res.json({ messages });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update session title
+app.patch('/api/sessions/:id', async (req, res) => {
+  try {
+    if (!sessionService) {
+      return res.status(503).json({ error: 'Session service not available' });
+    }
+    
+    const { title } = req.body;
+    await sessionService.updateTitle(req.params.id, title);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update session error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete session
+app.delete('/api/sessions/:id', async (req, res) => {
+  try {
+    if (!sessionService) {
+      return res.status(503).json({ error: 'Session service not available' });
+    }
+    
+    await sessionService.deleteSession(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete session error:', error);
     res.status(500).json({ error: error.message });
   }
 });
