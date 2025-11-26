@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Data directories
+data/
+exports/
+logs/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (not needed in image)
+*.md
+!README.md
+
+# Tests
+__tests__/
+*.test.js
+coverage/
+
+# Development
+scripts/
+docker-compose*.yml

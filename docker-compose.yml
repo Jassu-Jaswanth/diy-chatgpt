@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: diy-chatgpt-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-diy_chatgpt}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-diy_chatgpt}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # DIY ChatGPT Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diy-chatgpt-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - PLANNER_MODEL=${PLANNER_MODEL:-gpt-4o-mini}
+      - REASONING_MODEL=${REASONING_MODEL:-gpt-4o}
+      - CREATIVE_MODEL=${CREATIVE_MODEL:-gpt-4o-mini}
+      - CODE_MODEL=${CODE_MODEL:-gpt-4o-mini}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-diy_chatgpt}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - STORAGE_PATH=/app/data/sessions
+    volumes:
+      - session_data:/app/data/sessions
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  session_data:
+    driver: local
