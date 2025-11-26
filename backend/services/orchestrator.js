@@ -28,17 +28,38 @@ class Orchestrator {
 
   /**
    * Main entry point - processes user message through planner → executor
+   * 
+   * @param {Array} messages - Chat messages
+   * @param {Object} options - Processing options
+   * @param {string} options.customInstructions - Custom user instructions
+   * @param {string} options.forceMode - Force a specific intent mode
+   * @param {Array} options.forcedTools - Manually enabled tools (adds patches constructively)
    */
   async process(messages, options = {}) {
-    const { customInstructions = '', forceMode = null } = options;
+    const { customInstructions = '', forceMode = null, forcedTools = [] } = options;
     const userMessage = messages[messages.length - 1]?.content || '';
 
-    // Stage 1: Planner - Classify intent and plan execution
-    const plan = forceMode 
-      ? { intent: forceMode, confidence: 1.0, needsTools: [forceMode], complexity: 'moderate' }
-      : await this.runPlanner(userMessage);
+    let plan;
     
-    this.log('plan', { intent: plan.intent, confidence: plan.confidence, tools: plan.needsTools });
+    // If tools are manually forced, use them constructively
+    if (forcedTools && forcedTools.length > 0) {
+      this.log('forced_tools', forcedTools);
+      
+      // Still run planner to get intent, but override tools
+      const basePlan = await this.runPlanner(userMessage);
+      plan = {
+        ...basePlan,
+        needsTools: forcedTools, // Override with forced tools
+        forcedTools: true
+      };
+    } else if (forceMode) {
+      plan = { intent: forceMode, confidence: 1.0, needsTools: [forceMode], complexity: 'moderate' };
+    } else {
+      // Stage 1: Planner - Classify intent and plan execution
+      plan = await this.runPlanner(userMessage);
+    }
+    
+    this.log('plan', { intent: plan.intent, confidence: plan.confidence, tools: plan.needsTools, forced: !!plan.forcedTools });
 
     // Stage 2: Execute based on plan
     const result = await this.execute(messages, plan, customInstructions);
@@ -110,6 +131,9 @@ class Orchestrator {
   /**
    * Stage 2: Executor
    * Routes to appropriate handler based on plan
+   * 
+   * System prompt is built CONSTRUCTIVELY:
+   * Base + Tool Patches (for all enabled tools) + Custom Instructions
    */
   async execute(messages, plan, customInstructions) {
     const { intent, needsTools, complexity, extractedQuery } = plan;
@@ -118,15 +142,19 @@ class Orchestrator {
     const modelKey = modelConfig.taskMapping[intent] || 'chat';
     const model = modelConfig.models[modelKey];
     
-    this.log('executor', { model: model.name, intent, complexity });
+    this.log('executor', { model: model.name, intent, complexity, tools: needsTools });
 
-    // Build system prompt with appropriate tool patches
+    // Build system prompt with ALL tool patches (constructive)
+    // This applies patches for every enabled tool, tilting behavior
     const systemPrompt = promptConfig.buildSystemPrompt({
-      tools: needsTools.includes('web_search') ? ['web_search'] : [],
+      tools: needsTools, // Pass all enabled tools for patching
       customInstructions
     });
+    
+    this.log('prompt_tokens', promptConfig.estimateTokens(systemPrompt));
 
     // Route to appropriate handler
+    // All handlers receive systemPrompt which has base + all enabled tool patches
     switch (intent) {
       case 'search':
         return this.handleSearch(messages, plan, systemPrompt, model);
@@ -135,7 +163,7 @@ class Orchestrator {
         return this.handleResearch(messages, plan, systemPrompt, model);
       
       case 'study':
-        return this.handleStudy(messages, plan, model);
+        return this.handleStudy(messages, plan, systemPrompt, model);
       
       case 'code':
         return this.handleCode(messages, systemPrompt, model);
@@ -228,8 +256,10 @@ class Orchestrator {
 
   /**
    * Handler: Study Mode
+   * Uses study service for lessons, flashcards, quizzes
+   * systemPrompt includes study patch if enabled
    */
-  async handleStudy(messages, plan, model) {
+  async handleStudy(messages, plan, systemPrompt, model) {
     const userMessage = messages[messages.length - 1].content;
     const lower = userMessage.toLowerCase();
     
@@ -259,14 +289,13 @@ class Orchestrator {
 
   /**
    * Handler: Code
+   * Uses the systemPrompt which already includes code patch if enabled
    */
   async handleCode(messages, systemPrompt, model) {
-    const codePrompt = promptConfig.buildSystemPrompt({ tools: ['code'] });
-    
     const response = await this.openai.chat.completions.create({
       model: model.name,
       messages: [
-        { role: 'system', content: codePrompt },
+        { role: 'system', content: systemPrompt },
         ...messages
       ],
       max_tokens: model.maxTokens,
@@ -287,14 +316,13 @@ class Orchestrator {
 
   /**
    * Handler: Creative
+   * Uses the systemPrompt which already includes creative patch if enabled
    */
   async handleCreative(messages, systemPrompt, model) {
-    const creativePrompt = promptConfig.buildSystemPrompt({ tools: ['creative'] });
-    
     const response = await this.openai.chat.completions.create({
       model: model.name,
       messages: [
-        { role: 'system', content: creativePrompt },
+        { role: 'system', content: systemPrompt },
         ...messages
       ],
       max_tokens: model.maxTokens,

@@ -432,6 +432,75 @@
         .sources a:hover {
             color: var(--text-primary);
         }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.5rem 0;
+        }
+
+        .toolbar-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .toolbar-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tool-toggles {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .tool-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.625rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .tool-toggle svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .tool-toggle:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-color: var(--accent);
+        }
+
+        .tool-toggle.active {
+            background: var(--accent);
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        .toolbar-info {
+            margin-left: auto;
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -486,6 +555,48 @@
         </div>
     </header>
 
+    <div class="toolbar">
+        <div class="toolbar-content">
+            <span class="toolbar-label">Tools:</span>
+            <div class="tool-toggles">
+                <button class="tool-toggle" data-tool="web_search" title="Web Search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <span>Search</span>
+                </button>
+                <button class="tool-toggle" data-tool="research" title="Deep Research">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+                    </svg>
+                    <span>Research</span>
+                </button>
+                <button class="tool-toggle" data-tool="study" title="Study Mode">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342"/>
+                    </svg>
+                    <span>Study</span>
+                </button>
+                <button class="tool-toggle" data-tool="code" title="Code Assistant">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"/>
+                    </svg>
+                    <span>Code</span>
+                </button>
+                <button class="tool-toggle" data-tool="creative" title="Creative Mode">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/>
+                    </svg>
+                    <span>Creative</span>
+                </button>
+            </div>
+            <div class="toolbar-info">
+                <span id="activeToolsCount">Auto</span>
+            </div>
+        </div>
+    </div>
+
     <main>
         <div id="messages" class="messages">
             <div class="message">
@@ -522,6 +633,7 @@
         const API_URL = 'http://localhost:3001/api';
         let messages = [];
         let isLoading = false;
+        let enabledTools = new Set(); // Track manually enabled tools
 
         const messagesDiv = document.getElementById('messages');
         const chatForm = document.getElementById('chatForm');
@@ -529,12 +641,39 @@
         const sendBtn = document.getElementById('sendBtn');
         const clearBtn = document.getElementById('clearBtn');
         const statusEl = document.getElementById('status');
+        const toolToggles = document.querySelectorAll('.tool-toggle');
+        const activeToolsCount = document.getElementById('activeToolsCount');
 
         // Configure marked
         marked.setOptions({
             breaks: true,
             gfm: true
         });
+
+        // Tool toggle handling
+        toolToggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const tool = toggle.dataset.tool;
+                
+                if (enabledTools.has(tool)) {
+                    enabledTools.delete(tool);
+                    toggle.classList.remove('active');
+                } else {
+                    enabledTools.add(tool);
+                    toggle.classList.add('active');
+                }
+                
+                updateToolsDisplay();
+            });
+        });
+
+        function updateToolsDisplay() {
+            if (enabledTools.size === 0) {
+                activeToolsCount.textContent = 'Auto';
+            } else {
+                activeToolsCount.textContent = `${enabledTools.size} active`;
+            }
+        }
 
         // Health check
         async function checkHealth() {
@@ -626,10 +765,17 @@
             const typingDiv = addMessage('assistant', '', true);
             
             try {
+                // Build request with enabled tools
+                const requestBody = { 
+                    messages,
+                    enabledTools: Array.from(enabledTools), // Send manually enabled tools
+                    useAgent: enabledTools.size === 0 // Use auto-routing if no tools selected
+                };
+                
                 const response = await fetch(`${API_URL}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 if (!response.ok) {

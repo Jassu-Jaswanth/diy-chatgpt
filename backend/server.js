@@ -50,7 +50,7 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const { messages, useAgent = true } = req.body;
+    const { messages, useAgent = true, enabledTools = [] } = req.body;
     
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array is required' });
@@ -58,8 +58,18 @@ app.post('/api/chat', async (req, res) => {
 
     let result;
     
-    if (useAgent && orchestrator) {
-      // Use orchestrator: planner model → executor model
+    // If tools are manually enabled, force those tools
+    const hasManualTools = enabledTools && enabledTools.length > 0;
+    
+    if (hasManualTools && orchestrator) {
+      // Use manually selected tools with constructive prompts
+      console.log(`[Server] Manual tools enabled: ${enabledTools.join(', ')}`);
+      result = await orchestrator.process(messages, { 
+        customInstructions: req.body.customInstructions,
+        forcedTools: enabledTools
+      });
+    } else if (useAgent && orchestrator) {
+      // Use orchestrator: planner model → executor model (auto-detect)
       result = await orchestrator.process(messages, { customInstructions: req.body.customInstructions });
     } else {
       // Direct chat without tool use
