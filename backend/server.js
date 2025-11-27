@@ -18,9 +18,12 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"]
+      connectSrc: ["'self'"],
+      upgradeInsecureRequests: null // Disable for HTTP development
     }
-  }
+  },
+  crossOriginOpenerPolicy: false,
+  originAgentCluster: false
 }));
 app.use(cors());
 app.use(compression());
