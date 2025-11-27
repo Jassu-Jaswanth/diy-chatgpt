@@ -1,0 +1,614 @@
+openapi: 3.1.0
+info:
+  title: DIY ChatGPT API
+  description: API contract for DIY ChatGPT backend services
+  version: 1.1.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Local development
+  - url: http://api:3001
+    description: Docker internal
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Chat
+    description: Main chat functionality
+  - name: Sessions
+    description: Session management
+  - name: Search
+    description: Web search functionality
+  - name: Study
+    description: Study mode tools
+  - name: Research
+    description: Deep research functionality
+  - name: Export
+    description: File export functionality
+  - name: Memory
+    description: Memory/context management
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/chat:
+    post:
+      tags: [Chat]
+      summary: Send a chat message
+      operationId: sendChatMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/sessions:
+    get:
+      tags: [Sessions]
+      summary: List all sessions
+      operationId: listSessions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+    post:
+      tags: [Sessions]
+      summary: Create a new session
+      operationId: createSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /api/sessions/{id}:
+    get:
+      tags: [Sessions]
+      summary: Get session by ID
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session details with messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithMessages'
+        '404':
+          description: Session not found
+    patch:
+      tags: [Sessions]
+      summary: Update session
+      operationId: updateSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSessionRequest'
+      responses:
+        '200':
+          description: Session updated
+    delete:
+      tags: [Sessions]
+      summary: Delete session
+      operationId: deleteSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session deleted
+
+  /api/sessions/{id}/messages:
+    get:
+      tags: [Sessions]
+      summary: Get session messages
+      operationId: getSessionMessages
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+
+  /api/search:
+    post:
+      tags: [Search]
+      summary: Web search
+      operationId: webSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+
+  /api/fetch:
+    post:
+      tags: [Search]
+      summary: Fetch URL content
+      operationId: fetchUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FetchRequest'
+      responses:
+        '200':
+          description: Fetched content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FetchResponse'
+
+  /api/study/lesson:
+    post:
+      tags: [Study]
+      summary: Generate study lesson
+      operationId: generateLesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyRequest'
+      responses:
+        '200':
+          description: Generated lesson
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyResponse'
+
+  /api/study/practice:
+    post:
+      tags: [Study]
+      summary: Generate practice questions
+      operationId: generatePractice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyRequest'
+      responses:
+        '200':
+          description: Practice questions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyResponse'
+
+  /api/study/flashcards:
+    post:
+      tags: [Study]
+      summary: Generate flashcards
+      operationId: generateFlashcards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyRequest'
+      responses:
+        '200':
+          description: Flashcards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyResponse'
+
+  /api/research:
+    post:
+      tags: [Research]
+      summary: Start deep research
+      operationId: startResearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResearchRequest'
+      responses:
+        '200':
+          description: Research results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchResponse'
+
+  /api/export:
+    post:
+      tags: [Export]
+      summary: Export content
+      operationId: exportContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Export result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+  /api/exports:
+    get:
+      tags: [Export]
+      summary: List exports
+      operationId: listExports
+      responses:
+        '200':
+          description: List of exports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportListResponse'
+
+components:
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        timestamp:
+          type: string
+          format: date-time
+        environment:
+          type: string
+        openaiConfigured:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+
+    ChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          format: uuid
+        tools:
+          type: array
+          items:
+            type: string
+            enum: [search, study, research, code, creative]
+
+    ChatResponse:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [assistant]
+        content:
+          type: string
+        toolUsed:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        sessionId:
+          type: string
+          format: uuid
+
+    Source:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        snippet:
+          type: string
+
+    Session:
+      type: object
+      required: [id, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+          description: Unix timestamp in milliseconds
+        updatedAt:
+          type: integer
+        lastActivityAt:
+          type: integer
+        metadata:
+          type: object
+
+    SessionWithMessages:
+      allOf:
+        - $ref: '#/components/schemas/Session'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        toolUsed:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        createdAt:
+          type: integer
+        isSummarized:
+          type: boolean
+
+    SessionListResponse:
+      type: object
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+
+    MessageListResponse:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        metadata:
+          type: object
+
+    UpdateSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        limit:
+          type: integer
+          default: 10
+
+    SearchResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+    SearchResult:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        snippet:
+          type: string
+
+    FetchRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+
+    FetchResponse:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        url:
+          type: string
+
+    StudyRequest:
+      type: object
+      required: [topic]
+      properties:
+        topic:
+          type: string
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+          default: intermediate
+
+    StudyResponse:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+        type:
+          type: string
+
+    ResearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        depth:
+          type: string
+          enum: [quick, standard, deep]
+          default: standard
+
+    ResearchResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        findings:
+          type: array
+          items:
+            type: object
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+
+    ExportRequest:
+      type: object
+      required: [content, format]
+      properties:
+        content:
+          type: string
+        format:
+          type: string
+          enum: [pdf, markdown, docx, csv, txt]
+        title:
+          type: string
+
+    ExportResponse:
+      type: object
+      properties:
+        filename:
+          type: string
+        path:
+          type: string
+        format:
+          type: string
+        size:
+          type: integer
+
+    ExportListResponse:
+      type: object
+      properties:
+        exports:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+              size:
+                type: integer
+              createdAt:
+                type: string
+                format: date-time
