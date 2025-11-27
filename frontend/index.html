@@ -786,7 +786,7 @@
     </div><!-- End app-container -->
 
     <script>
-        const API_URL = 'http://localhost:3001/api';
+        const API_URL = '/api';
         let messages = [];
         let isLoading = false;
         let enabledTools = new Set();
@@ -1019,7 +1019,7 @@
         // Health check
         async function checkHealth() {
             try {
-                const response = await fetch(`${API_URL.replace('/api', '')}/health`);
+                const response = await fetch('/health');
                 if (response.ok) {
                     statusEl.className = 'status connected';
                     statusEl.querySelector('span').textContent = 'Connected';
