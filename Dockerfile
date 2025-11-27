@@ -1,16 +1,21 @@
 # DIY ChatGPT - Production Dockerfile
-FROM node:20-alpine
+FROM node:22-alpine
 
-# Install dependencies for native modules
-RUN apk add --no-cache python3 make g++
+# Install dependencies for native modules and Chromium for Puppeteer
+RUN apk add --no-cache python3 make g++ chromium
+
+# Skip Puppeteer's bundled Chromium download - use system Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (faster without Chromium download)
+RUN npm ci --only=production --ignore-scripts && \
+    npm rebuild
 
 # Copy application code
 COPY . .
